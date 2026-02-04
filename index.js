@@ -1,39 +1,31 @@
 const http = require('http');
 
 const server = http.createServer((req, res) => {
-    // الرابط الأصلي
-    const targetUrl = "http://app.upsdo.me:8080/live/PCCQTZPXVCEG/041212071179/94962.ts";
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    
+    // 1. كلمة السر (Token)
+    const secretKey = "2026"; 
+    
+    // 2. التحقق من كلمة السر والامتداد الوهمي
+    if (url.searchParams.get("key") !== secretKey) {
+        res.writeHead(403);
+        res.end("Unauthorized: Access Denied");
+        return;
+    }
 
-    // إعدادات لفك الحماية
-    const options = {
-        headers: { 
-            'User-Agent': 'VLC/3.0.18', 
-            'Accept': '*/*',
-            'Connection': 'keep-alive'
-        },
-        timeout: 10000 // مهلة 10 ثواني
-    };
+    // الرابط الأصلي المخفي
+    const targetUrl = "http://app.upsdo.me:8080/live/PCCQTZPXVCEG/041212071179/94961.ts";
 
-    const proxyReq = http.get(targetUrl, options, (proxyRes) => {
-        // تمرير كود الحالة (مثلاً 200)
+    http.get(targetUrl, (proxyRes) => {
         res.writeHead(proxyRes.statusCode, {
             'Content-Type': 'video/mp2t',
             'Access-Control-Allow-Origin': '*',
-            'Cache-Control': 'no-cache'
+            'Connection': 'keep-alive'
         });
         proxyRes.pipe(res);
-    });
-
-    proxyReq.on('error', (e) => {
-        if (!res.headersSent) {
-            res.writeHead(500);
-            res.end("خطأ في الاتصال بالسيرفر الأصلي: " + e.message);
-        }
+    }).on('error', (e) => {
+        res.end(e.message);
     });
 });
 
-// المنفذ الذي يطلبه Render
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log("السيرفر يعمل الآن على المنفذ: " + PORT);
-});
+server.listen(process.env.PORT || 3000);
